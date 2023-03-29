@@ -1,9 +1,15 @@
 #[macro_use]
 extern crate rocket;
 
-use rocket::http::{ContentType, Status};
-use rocket::request::Request;
-use rocket::response::{Responder, Response};
+use rocket::{
+    http::{ContentType, Status},
+    request::Request,
+    response::{Responder, Response},
+    serde::json::Json,
+    serde::Deserialize,
+    serde::Serialize,
+};
+use serde_json;
 
 #[derive(Debug)]
 pub struct RocketErrorResponder {
@@ -40,7 +46,7 @@ fn error_route() -> Result<(), RocketErrorResponder> {
     )))
 }
 
-#[catch(500)]
+#[catch(422)]
 fn internal_server_error() -> RocketErrorResponder {
     RocketErrorResponder::new(String::from("Internal Server Error"))
 }
@@ -50,11 +56,38 @@ fn index() -> &'static str {
     "Hello, world!"
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct AuthData {
+    pub account: String,
+    pub amount: u32,
+}
+
+#[post("/authorize", data = "<data>")]
+pub fn authorize(data: Json<AuthData>) -> Json<AuthData> {
+    print!("{:#?}", data);
+    data
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct RefundData {
+    pub account: String,
+    pub amount: u32,
+}
+
+#[post("/refund", format = "json", data = "<data>")]
+pub fn refund(data: Json<RefundData>) -> Json<RefundData> {
+    print!("{:#?}", data);
+    data
+}
+
 #[launch]
 fn rocket() -> _ {
     rocket::build()
         .register("/", catchers![internal_server_error])
         .mount("/", routes![index])
         .mount("/", routes![error_route])
-
+        .mount("/", routes![authorize])
+        .mount("/", routes![refund])
 }
