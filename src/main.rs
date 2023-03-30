@@ -1,6 +1,8 @@
 #[macro_use]
 extern crate rocket;
 
+use std::clone;
+
 use rocket::{
     http::{ContentType, Status},
     request::Request,
@@ -78,7 +80,13 @@ pub struct RefundData {
 
 #[post("/refund", format = "json", data = "<data>")]
 pub fn refund(data: Json<RefundData>) -> Json<RefundData> {
-    print!("{:#?}", data);
+    let json_data: RefundData = RefundData {
+        account: data.account.clone(),
+        amount: data.amount.clone(),
+    };
+    let json = serde_json::to_string(&json_data).unwrap();
+    println!("{json}");
+    print!("{} - {}", data.account, data.amount);
     data
 }
 
