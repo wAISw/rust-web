@@ -1,101 +1,42 @@
+#![allow(unreachable_code)]
+#![allow(unused_variables)]
+
 #[macro_use]
 extern crate rocket;
 
-use std::clone;
+mod state;
+use state::*;
+mod errors;
+use errors::*;
+mod routes;
+use routes::*;
 
-use rocket::{
-    http::{ContentType, Status},
-    request::Request,
-    response::{Responder, Response},
-    serde::json::Json,
-    serde::Deserialize,
-    serde::Serialize,
-};
-use serde_json;
+use routes::{authorize, index, refund};
 
 #[derive(Debug)]
-pub struct RocketErrorResponder {
+pub struct ErrorResponder {
     message: String,
 }
 
-impl RocketErrorResponder {
+impl ErrorResponder {
     pub fn new(message: String) -> Self {
         Self { message }
     }
 }
 
-impl<'r> Responder<'r, 'static> for RocketErrorResponder {
-    fn respond_to(self, _: &Request<'_>) -> rocket::response::Result<'static> {
-        let response_body = serde_json::json!({
-            "message": self.message
-        });
-        Response::build()
-            .status(Status::InternalServerError)
-            .header(ContentType::JSON)
-            .sized_body(
-                response_body.to_string().len(),
-                std::io::Cursor::new(response_body.to_string()),
-            )
-            .ok()
+#[catch(422)]
+fn internal_server_error() -> RestApiError {
+    RestApiError::RestApiServiceError {
+        source: "Internal Sereve Error".to_string(),
     }
 }
 
-#[get("/error")]
-fn error_route() -> Result<(), RocketErrorResponder> {
-    // simulate an error
-    Err(RocketErrorResponder::new(String::from(
-        "An error occurred.",
-    )))
-}
-
-#[catch(422)]
-fn internal_server_error() -> RocketErrorResponder {
-    RocketErrorResponder::new(String::from("Internal Server Error"))
-}
-
-#[get("/")]
-fn index() -> &'static str {
-    "Hello, world!"
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(crate = "rocket::serde")]
-pub struct AuthData {
-    pub account: String,
-    pub amount: u32,
-}
-
-#[post("/authorize", data = "<data>")]
-pub fn authorize(data: Json<AuthData>) -> Json<AuthData> {
-    print!("{:#?}", data);
-    data
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(crate = "rocket::serde")]
-pub struct RefundData {
-    pub account: String,
-    pub amount: u32,
-}
-
-#[post("/refund", format = "json", data = "<data>")]
-pub fn refund(data: Json<RefundData>) -> Json<RefundData> {
-    let json_data: RefundData = RefundData {
-        account: data.account.clone(),
-        amount: data.amount.clone(),
-    };
-    let json = serde_json::to_string(&json_data).unwrap();
-    println!("{json}");
-    print!("{} - {}", data.account, data.amount);
-    data
-}
-
 #[launch]
-fn rocket() -> _ {
+async fn rocket() -> _ {
+    let app_state = state::AppState::new();
+
     rocket::build()
+        .mount("/", routes![index, authorize, refund])
         .register("/", catchers![internal_server_error])
-        .mount("/", routes![index])
-        .mount("/", routes![error_route])
-        .mount("/", routes![authorize])
-        .mount("/", routes![refund])
+        .manage(app_state)
 }
