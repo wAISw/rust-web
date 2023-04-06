@@ -1,5 +1,12 @@
 use crate::errors::*;
+use diesel::prelude::*;
+use rust_web::*;
+
 use rocket::serde::json::Json;
+use rust_web::{
+    models::{Action, NewAction},
+    *,
+};
 use serde::{Deserialize, Serialize};
 
 #[get("/")]
@@ -19,11 +26,27 @@ pub struct AuthData {
     pub amount: u32,
 }
 
-#[post("/authorize", format = "json", data = "<data>")]
+#[post("/authorize", format = "json", data = "<raw_data>")]
 pub(crate) async fn authorize(
-    data: Json<AuthData>,
+    raw_data: Json<AuthData>,
 ) -> RestApiResult<Json<StatusResponse>, RestApiError> {
-    print!("{:#?}", data);
+    use self::schema::actions_queue;
+    let connection = &mut establish_connection();
+
+    let id = uuid::Uuid::new_v4().to_string();
+
+    let data_s = serde_json::to_string(&raw_data.into_inner()).unwrap();
+    let new_action: NewAction = NewAction {
+        action_type: &("authorize".to_string())[..],
+        data: &data_s[..],
+    };
+
+    let created_action: Action = diesel::insert_into(actions_queue::table)
+        .values(&new_action)
+        .get_result::<Action>(connection)
+        .expect("Error saving new role");
+
+    print!("{:#?}", created_action);
     Ok(Json(StatusResponse {
         status: String::from("authorized"),
     }))

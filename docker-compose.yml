@@ -1,0 +1,30 @@
+version: '3'
+
+# This field prevents name coercions when you run different boilerplate'd projects on same host.
+# To use this field  should select "Use Docker Compose V2" option (at least on MacOS@DockerDesktop)
+name: 'rust-web'
+
+services:
+  db:
+    image: postgres:13.3
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./localAppData/postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: db_dev
+      POSTGRES_USER: username
+      POSTGRES_PASSWORD: password
+
+  pgweb:
+    restart: always
+    image: sosedoff/pgweb
+    ports:
+      - "8081:8081"
+    environment:
+      DATABASE_URL: postgres://username:password@db:5432/db_dev?sslmode=disable
+    depends_on:
+      - db
+
+volumes:
+  postgres: {}

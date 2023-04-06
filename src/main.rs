@@ -9,9 +9,8 @@ use state::*;
 mod errors;
 use errors::*;
 mod routes;
-use routes::*;
+use routes::{index, refund, authorize};
 
-use routes::{authorize, index, refund};
 
 #[derive(Debug)]
 pub struct ErrorResponder {
