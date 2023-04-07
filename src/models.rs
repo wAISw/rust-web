@@ -8,6 +8,7 @@ pub struct Action {
     pub id: String,
     pub action_type: String,
     pub data: String,
+    pub data1: String,
     pub created_at: DateTime<Utc>,
     // pub updated_at: String,
 }
