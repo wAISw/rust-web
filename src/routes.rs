@@ -1,13 +1,9 @@
-use crate::errors::*;
-use diesel::prelude::*;
+use crate::{errors::*, state::AppState};
 use rust_web::*;
 
-use rocket::serde::json::Json;
-use rust_web::{
-    models::{Action, NewAction},
-    *,
-};
+use rocket::{serde::json::Json, State};
 use serde::{Deserialize, Serialize};
+use sqlx::{PgPool, Postgres};
 
 #[get("/")]
 pub(crate) fn index() -> &'static str {
@@ -28,25 +24,27 @@ pub struct AuthData {
 
 #[post("/authorize", format = "json", data = "<raw_data>")]
 pub(crate) async fn authorize(
+    // state: State<'_, PgPool>,
     raw_data: Json<AuthData>,
 ) -> RestApiResult<Json<StatusResponse>, RestApiError> {
-    use self::schema::actions_queue;
-    let connection = &mut establish_connection();
+    // print!("{:#?}", state);
+    // use self::schema::actions_queue;
+    // let connection = &mut establish_connection();
 
-    let id = uuid::Uuid::new_v4().to_string();
+    // let id = uuid::Uuid::new_v4().to_string();
 
-    let data_s = serde_json::to_string(&raw_data.into_inner()).unwrap();
-    let new_action: NewAction = NewAction {
-        action_type: &("authorize".to_string())[..],
-        data: &data_s[..],
-    };
+    // let data_s = serde_json::to_string(&raw_data.into_inner()).unwrap();
+    // let new_action: NewAction = NewAction {
+    //     action_type: &("authorize".to_string())[..],
+    //     data: &data_s[..],
+    // };
 
-    let created_action: Action = diesel::insert_into(actions_queue::table)
-        .values(&new_action)
-        .get_result::<Action>(connection)
-        .expect("Error saving new role");
+    // let created_action: Action = diesel::insert_into(actions_queue::table)
+    //     .values(&new_action)
+    //     .get_result::<Action>(connection)
+    //     .expect("Error saving new role");
 
-    print!("{:#?}", created_action);
+    // print!("{:#?}", created_action);
     Ok(Json(StatusResponse {
         status: String::from("authorized"),
     }))

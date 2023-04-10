@@ -12,6 +12,14 @@ dotenvy = "0.15"
 serde = { "version" = "1.0.158", features = ["derive"] }
 serde_json = "1.0.95"
 chrono = { "version" = "0.4.24", features = ["serde"] }
+sqlx = { "version" = "0.6.3", features = [
+    "postgres",
+    "runtime-actix-native-tls",
+    "macros",
+    "json",
+    "chrono",
+    "uuid",
+] }
 
 [dependencies.rocket]
 version = "0.5.0-rc.2"
