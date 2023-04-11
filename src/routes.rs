@@ -1,13 +1,16 @@
 use crate::{errors::*, state::AppState};
-use rust_web::*;
-
 use rocket::{serde::json::Json, State};
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Postgres};
 
 #[get("/")]
-pub(crate) fn index() -> &'static str {
-    "Hello, world!"
+pub(crate) async fn index(pool: &rocket::State<PgPool>) -> &'static str {
+    let result = sqlx::query!("SELECT * FROM actions_queue_sqlx")
+        .fetch_all(pool.inner())
+        .await
+        .unwrap();
+    let return_value = "Hello, world!";
+    return_value
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -22,29 +25,28 @@ pub struct AuthData {
     pub amount: u32,
 }
 
-#[post("/authorize", format = "json", data = "<raw_data>")]
+/*
+curl -d '{"account":"test", "amount":42}' -H "Content-Type: application/json" -X POST http://127.0.0.1:8000/authorize
+*/
+#[post("/authorize", format = "json", data = "<data>")]
 pub(crate) async fn authorize(
-    // state: State<'_, PgPool>,
-    raw_data: Json<AuthData>,
+    pool: &rocket::State<PgPool>,
+    data: Json<AuthData>,
 ) -> RestApiResult<Json<StatusResponse>, RestApiError> {
-    // print!("{:#?}", state);
-    // use self::schema::actions_queue;
-    // let connection = &mut establish_connection();
+    let id = uuid::Uuid::new_v4().to_string();
+    let result = sqlx::query!(
+        r#"
+        INSERT INTO actions_queue_sqlx(id, action_type, data)
+        VALUES ($1, 'authorize', $2)
+        RETURNING *;
+        "#,
+        id,
+        serde_json::to_string(&data.into_inner()).unwrap()
+    )
+    .fetch_all(pool.inner())
+    .await
+    .unwrap();
 
-    // let id = uuid::Uuid::new_v4().to_string();
-
-    // let data_s = serde_json::to_string(&raw_data.into_inner()).unwrap();
-    // let new_action: NewAction = NewAction {
-    //     action_type: &("authorize".to_string())[..],
-    //     data: &data_s[..],
-    // };
-
-    // let created_action: Action = diesel::insert_into(actions_queue::table)
-    //     .values(&new_action)
-    //     .get_result::<Action>(connection)
-    //     .expect("Error saving new role");
-
-    // print!("{:#?}", created_action);
     Ok(Json(StatusResponse {
         status: String::from("authorized"),
     }))
@@ -58,15 +60,25 @@ pub struct RefundData {
 }
 
 #[post("/refund", format = "json", data = "<data>")]
-pub(crate) fn refund(data: Json<RefundData>) -> RestApiResult<Json<StatusResponse>, RestApiError> {
-    let json_data: RefundData = RefundData {
-        account: data.account.clone(),
-        amount: data.amount.clone(),
-    };
-    let json = serde_json::to_string(&json_data).unwrap();
-    println!("{json}");
-    print!("{} - {}", data.account, data.amount);
+pub(crate) async fn refund(
+    pool: &rocket::State<PgPool>,
+    data: Json<RefundData>,
+) -> RestApiResult<Json<StatusResponse>, RestApiError> {
+    let id = uuid::Uuid::new_v4().to_string();
+    let result = sqlx::query!(
+        r#"
+        INSERT INTO actions_queue_sqlx(id, action_type, data)
+        VALUES ($1, 'refund', $2)
+        RETURNING *;
+        "#,
+        id,
+        serde_json::to_string(&data.into_inner()).unwrap()
+    )
+    .fetch_all(pool.inner())
+    .await
+    .unwrap();
+
     Ok(Json(StatusResponse {
-        status: String::from("done"),
+        status: String::from("authorized"),
     }))
 }

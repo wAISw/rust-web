@@ -35,16 +35,6 @@ fn internal_server_error() -> RestApiError {
     }
 }
 
-#[get("/test")]
-async fn index1(pool: &rocket::State<PgPool>) -> &'static str {
-    sqlx::query!("SELECT * FROM actions_queue_sqlx")
-        .fetch_all(pool.inner())
-        .await;
-    // ...
-    let return_value = "Hello, world!";
-    return_value
-}
-
 #[launch]
 async fn rocket() -> _ {
     dotenv().ok();
@@ -71,8 +61,8 @@ async fn rocket() -> _ {
     let app_state = state::AppState::new();
 
     rocket::build()
-        .mount("/", routes![index, index1, authorize, refund])
+        .mount("/", routes![index, authorize, refund])
         .register("/", catchers![internal_server_error])
         .manage(pool)
-    // .manage(app_state)
+        .manage(app_state)
 }
