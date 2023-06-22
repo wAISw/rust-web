@@ -5,15 +5,11 @@
 extern crate rocket;
 
 mod state;
-use sqlx::query;
-use sqlx::{postgres::PgPoolOptions, PgPool};
-use state::*;
+use sqlx::postgres::PgPoolOptions;
 mod errors;
 use errors::*;
 mod routes;
 use dotenvy::dotenv;
-use rocket::http::Status;
-use rocket::State;
 use routes::{authorize, index, refund};
 use std::env;
 
@@ -39,6 +35,7 @@ fn internal_server_error() -> RestApiError {
 async fn rocket() -> _ {
     dotenv().ok();
     let database_url = env::var("DATABASE_URL");
+    println!("{}", database_url.clone().unwrap());
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect(&database_url.unwrap()[..])
@@ -47,12 +44,13 @@ async fn rocket() -> _ {
 
     sqlx::query(
         r#"
-    CREATE TABLE IF NOT EXISTS actions_queue_sqlx (
-      id VARCHAR PRIMARY KEY NOT NULL,
-      action_type VARCHAR NOT NULL,
-      data VARCHAR NOT NULL,
-      created_at timestamp with TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );"#,
+        CREATE TABLE IF NOT EXISTS actions_queue (
+          id VARCHAR PRIMARY KEY NOT NULL,
+          action_type VARCHAR NOT NULL,
+          account VARCHAR NOT NULL,
+          amount REAL NOT NULL,
+          created_at timestamp with TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );"#,
     )
     .execute(&pool)
     .await

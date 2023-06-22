@@ -1,11 +1,11 @@
-use crate::{errors::*, state::AppState};
-use rocket::{serde::json::Json, State};
+use crate::errors::*;
+use rocket::serde::json::Json;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Postgres};
+use sqlx::PgPool;
 
 #[get("/")]
 pub(crate) async fn index(pool: &rocket::State<PgPool>) -> &'static str {
-    let result = sqlx::query!("SELECT * FROM actions_queue_sqlx")
+    let result = sqlx::query!("SELECT * FROM actions_queue")
         .fetch_all(pool.inner())
         .await
         .unwrap();
@@ -22,7 +22,7 @@ pub struct StatusResponse {
 #[serde(crate = "rocket::serde")]
 pub struct AuthData {
     pub account: String,
-    pub amount: u32,
+    pub amount: f32,
 }
 
 /*
@@ -36,12 +36,13 @@ pub(crate) async fn authorize(
     let id = uuid::Uuid::new_v4().to_string();
     let result = sqlx::query!(
         r#"
-        INSERT INTO actions_queue_sqlx(id, action_type, data)
-        VALUES ($1, 'authorize', $2)
+        INSERT INTO actions_queue(id, action_type, account, amount)
+        VALUES ($1, 'authorize', $2, $3)
         RETURNING *;
         "#,
         id,
-        serde_json::to_string(&data.into_inner()).unwrap()
+        data.account.clone(),
+        data.amount.clone(),
     )
     .fetch_all(pool.inner())
     .await
@@ -56,7 +57,7 @@ pub(crate) async fn authorize(
 #[serde(crate = "rocket::serde")]
 pub struct RefundData {
     pub account: String,
-    pub amount: u32,
+    pub amount: f32,
 }
 
 #[post("/refund", format = "json", data = "<data>")]
@@ -67,12 +68,13 @@ pub(crate) async fn refund(
     let id = uuid::Uuid::new_v4().to_string();
     let result = sqlx::query!(
         r#"
-        INSERT INTO actions_queue_sqlx(id, action_type, data)
-        VALUES ($1, 'refund', $2)
+        INSERT INTO actions_queue(id, action_type, account, amount)
+        VALUES ($1, 'refund', $2, $3)
         RETURNING *;
         "#,
         id,
-        serde_json::to_string(&data.into_inner()).unwrap()
+        data.account.clone(),
+        data.amount.clone(),
     )
     .fetch_all(pool.inner())
     .await
